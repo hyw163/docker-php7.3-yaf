@@ -1,0 +1,84 @@
+version: '2'
+services:
+  # dns_server:
+  #   image: "zfming/dnsmasq:latest"
+  #   ports:
+  #     - "53:53/tcp"
+  #     - "53:53/udp"
+  #   cap_add:
+  #     - NET_ADMIN
+  #   volumes:
+  #     - ./etc/dnsmasq/dnsmasq.conf:/etc/dnsmasq.conf
+  #     - ./etc/dnsmasq/dnsmasq.d:/etc/dnsmasq.d
+  nginx:
+    image: "nginx:alpine"
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ../app/web:/app/web
+      - ./etc/nginx:/etc/nginx
+      - ./etc/localtime:/etc/localtime
+    network_mode: "bridge"
+    links:
+      - php_fpm:php-fpm
+    depends_on:
+      - php_fpm
+  php_fpm:
+    # image: "heyw/php-fpm7.4:latest"
+    build: ./php7.3-yaf
+    container_name: run_php_fpm
+    volumes:
+      - ../app/web:/app/web
+      - ./etc/localtime:/etc/localtime
+      - ./etc/php-fpm:/usr/local/etc
+    network_mode: "bridge"
+    depends_on:
+      - redis
+      - mysql
+      - memcached
+    links:
+      - redis:redis
+      - mysql:mysql
+      - memcached:memcached
+  # mq:
+  #   image: "rabbitmq:3.6-management"
+  #   hostname: "my_rabbit"
+  #   ports:
+  #     - "15671:15671"
+  #     - "15672:15672"
+  #   environment:
+  #     RABBITMQ_DEFAULT_USER: "zfm"
+  #     RABBITMQ_DEFAULT_PASS: "123456"
+  #     RABBITMQ_DEFAULT_VHOST: "my_vhost"
+  memcached:
+    image: "memcached:latest"
+    network_mode: "bridge"
+    mem_limit: 128M
+    command: memcached -m 128M
+  redis:
+    image: "redis:4"
+    ports:
+      - "6379:6379"
+    volumes:
+      - ./etc/redis/redis.conf:/usr/local/etc/redis/redis.conf
+    network_mode: "bridge"
+    command: "redis-server /usr/local/etc/redis/redis.conf"
+  mysql:
+    image: "mysql:5.7"
+    ports:
+      - "3306:3306"
+    volumes:
+      - ../data/mysql-data:/var/lib/mysql
+      - ./etc/localtime:/etc/localtime
+      - ./etc/mysql/my.cnf:/etc/my.cnf
+    network_mode: "bridge"
+    environment:
+      TZ: 'Asia/Shanghai'
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_ROOT_HOST: "%"
+  # couchdb:
+  #   image: "klaemo/couchdb:2.0.0"
+  #   ports:
+  #     - "5984:5984"
+  #   network_mode: "bridge"
